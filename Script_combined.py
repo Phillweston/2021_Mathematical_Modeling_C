@@ -93,23 +93,31 @@ class GameOfLife(object):
         """
         cell_extend_size = 10
         # 实际参与运算的矩阵的宽和高，上下左右四条边不算进去，所以要-2
+        # The width and height of the matrix actually involved in the operation, the upper and lower left and right sides do not count in, so to -2
         # 实际的矩阵会赋值经纬度转化对应点，对应的cell_shape即为从第1个元素开始赋值一直到第end-1个元素结束
+        # The actual matrix assigns a longitude and latitude conversion corresponding point, and the corresponding cell_shape is assigned from the 1st element to the end of the 1st element
         real_width = cells_shape[0] - 2
         real_height = cells_shape[1] - 2
         # print(real_width, real_height)
         # 定义细胞初始状态，矩阵的四周不参与运算
+        # Defines the initial state of the cell, and the four persetrics of the matrix are not involved in the operation
         self.cells = np.zeros(cells_shape)
         # print(cells_shape)
         # 细胞的卷积移动平均值
+        # The average of the cell's co product movement
         self.cell_value = np.zeros([cells_shape[0], cells_shape[1]])
         # 定义细胞掩膜初始状态，矩阵的四周不参与运算
+        # Defines the initial state of the cell mask, and the peroth of the matrix is not involved in the operation
         self.cells_mask = np.ones(cells_shape)
         for k in range(len(Latitude_and_Longitude_Mask_Array)):
             if Latitude_and_Longitude_Mask_Array[k][2] == 0:
                 self.cells_mask[int(Latitude_and_Longitude_Mask_Array[k][0]), int(Latitude_and_Longitude_Mask_Array[k][1])] = 0
         # 初始化细胞的位置，生成real_width*real_height的随机矩阵，然后添加已知的种群点坐标
+        # Initialize the location of the cells, real_width a real_height matrix of the cells, and then add known population point coordinates
         # 添加规则：种群点中心位置为确定值1，点距离种群点中心越远则为1的可能性越小，包围的5*5区域形成一个簇
+        # Add rule: The center of the population point is a defined value of 1, and the farther away the point is from the center of the population point, the less likely it is that 1 will form a cluster in the surrounding 5x5 area
         # 用簇的分布来近似代替种群点附近的分布
+        # The distribution of clusters is used to approximate the distribution near population points
         for k in range(Point_count):
             self.cells[int(Population_Point[k][0]), int(Population_Point[k][1])] = 1
             # print(Population_Point[k][0], Population_Point[k][1])
@@ -125,23 +133,31 @@ class GameOfLife(object):
         self.position = np.zeros([real_width * real_height, 2])
         self.timer = 0
         # 定义卷积掩膜
+        # Define the constumal mask
         self.mask = np.ones(9)
         # self.mask[4]代表九宫格最中间的那个元素，也就是自身
+        # self.mask[4] represents the middle element of the nine palace grids, that is, itself
         self.mask[4] = 0
         self.mask_density = np.ones(25)
         self.mask_density[12] = 0
         self.count = 0
         # 预测结果
+        # Predict the results
         self.label_predict = []
         # 预测的类别数
+        # The number of categories predicted
         self.region_number = Point_count
         # 每个类别的统计数据
+        # Statistics for each category
         self.region_statistics = np.zeros(self.region_number)
         # 预测的聚类中心
+        # The clustering center of the prediction
         self.centroids = []
         # 各个标签对应的数据点
+        # The data points for each label
         self.cluster_k = []
         # 定义密度绘制坐标系经纬度
+        # Define density to plot the latitude and longitude of the coordinate system
         self.Density_Plot_Latitude_List = []
         self.Density_Plot_Longitude_List = []
 
@@ -150,36 +166,48 @@ class GameOfLife(object):
         self.region_statistics = np.zeros(self.region_number)
         position = self.position
         # 将生成的数据的聚类分为Point_count类
+        # Cluster the resulting data into Point_count categories
         estimator = KMeans(n_clusters=Point_count)
         # 拟合+预测
+        # Fitting and forecasting
         # 注意这里的要传入的参数是修改后的n*2数组
+        # Note that the argument to be passed in here is the modified array of n*2
         # res代表返回的聚类结果，范围是从0到类别数-1
+        # Res represents the returned cluster result, ranging from 0 to the number of categories -1
         res = estimator.fit_predict(self.position)
         # 预测类别标签结果
+        # Predict category label results
         self.label_predict = estimator.labels_
         # 各个类别的聚类中心值
+        # Cluster center values for each category
         self.centroids = estimator.cluster_centers_
         inertia = estimator.inertia_
         # print(self.label_predict)
         # 各个标签对应的数据点
+        # The data points for each label
         self.cluster_k = [self.position[res == k] for k in range(self.region_number)]
         # print(self.cluster_k)
         '''
         采用DBI的方式，对KMeans聚类的结果进行评估
+        The results of KMeans clustering are evaluated by DBI
         '''
         # 求簇类中数据到质心欧氏距离和的平均距离
+        # Find the distance between the data and the average distance from the centrity eutony in the cluster class
         S = [np.mean([euclidean(p, self.centroids[i]) for p in k]) for i, k in enumerate(self.cluster_k)]
         # 求出Rij和Ri:
+        # Find Rij and Ri
         Ri = []
         for i in range(self.region_number):
             Rij = []
             # 衡量第i类与第j类的相似度
+            # Measure the similarity between class i and class j
             for j in range(self.region_number):
                 if j != i:
                     r = (S[i] + S[j]) / euclidean(self.centroids[i], self.centroids[j])  # 这个分母是Mij，即两个质心的距离
                     Rij.append(r)
             Ri.append(max(Rij))
         # 求DBI值
+        # Find the DBI value
         dbi = np.mean(Ri)
         print("DBI result is %s" % dbi)
 
@@ -193,25 +221,35 @@ class GameOfLife(object):
         for i in range(1, cells.shape[0] - 1):
             for j in range(1, cells.shape[1] - 1):
                 # 计算该细胞周围的存活细胞数
+                # The number of surviving cells around the cell is calculated
                 # 一个元胞的生死由其在该时刻本身的生死状态和周围的八个邻居的状态
+                # The life and death of a cell is determined by its own state of life and death at that moment and the state of the eight neighbors around it
                 neighbor = cells[i - 1:i + 2, j - 1:j + 2].reshape((-1,))
                 # 线性卷积函数，self.mask*neighbor
+                # Linear co product function, self.mask*neighbor
                 # 返回的数组长度为max(M,N)-min(M,N)+1,此时返回的是完全重叠的点。边缘的点无效。
+                # The returned array length is max (M, N) -min (M, N) plus 1, at which point is completely overlapping. The point at the edge is not valid.
                 neighbor_num = np.convolve(self.mask, neighbor, 'valid')[0]
                 # 这里添加了对于当前位置的细胞掩膜的判断，掩膜值为1说明该位置细胞可能存活，掩膜为0说明该位置细胞不可能存活
+                # A judgment of the cell mask at the current location is added here, with a mask value of 1 indicating that the cell may survive at that location and a mask of 0 indicating that the cell at that location is unlikely to survive
                 if neighbor_num == 3 and cells_mask[i, j] != 0:
                     # 如果这个元胞周围有三个元胞为生，则这个元胞为生
+                    # If there are three cells around the cell for a living, the cell is for a living
                     buf[i, j] = 1
                 elif neighbor_num == 2 and cells_mask[i, j] != 0:
                     # 如果这个元胞周围有两个元胞为生，则这个元胞保持之前的状态
+                    # If there are two cells around the cell for a living, the cell remains in its previous state
                     buf[i, j] = cells[i, j]
                 else:
                     # 如果这个元胞周围有一个或零个元胞为生，则这个元胞为死
+                    # If there is one or zero cells around the cell for a living, the cell is dead
                     buf[i, j] = 0
                 # 如果这个细胞为生，则加入到聚类中
+                # If the cell is raw, it is added to the cluster
                 if buf[i, j] == 1:
                     # 为什么要进行这一步？
                     # 需要将目前存活的细胞的位置加入到n*2的数组中
+                    # The location of the cells that are currently alive needs to be added to the array of n*2
                     self.position[self.count][0] = i
                     self.position[self.count][1] = j
                     self.count += 1
